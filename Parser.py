@@ -1,5 +1,5 @@
 from queue import Queue
-import Data
+
 
 class Parser:
 
@@ -13,7 +13,6 @@ class Parser:
     def __init__(self, file_path):
 
         self.rq = self.pre_process(file_path)
-
 
     def pre_process(self, file_path):
         """
@@ -52,7 +51,6 @@ class Parser:
         """
         if self.has_more_lines():
             return self.rq.get()
-
 
     def command_type(self, cmd_line):
         """
@@ -100,6 +98,8 @@ class Parser:
         else:
             raise ValueError("Invalid Command Type Detected!")
         
+        return self.cmd_type
+        
     def cmd_arg1(self):
         """
         return the first argument of the current command.
@@ -121,7 +121,7 @@ class Parser:
         if self.cmd_type in ["C_PUSH", "C_POP", "C_FUNCTION", "C_CALL"]:
             arg_temp = self.arg2
         else:
-            raise ValueError("Should be called only if curr command is C_PUSH, C_POP, C_FUNCTION, or C_CALL!")
+            arg_temp = None
         return arg_temp
     
     # Below this line are helper methods    
@@ -132,11 +132,11 @@ class Parser:
             print(item)
 
 
-
 if __name__ == "__main__":
 
-    parser = Parser("StackTest.vm")
+    parser = Parser("SimpleAdd.vm")
 
+    parser.command_type(parser.advance())
     parser.command_type(parser.advance())
     parser.command_type(parser.advance())
 
