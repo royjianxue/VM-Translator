@@ -9,10 +9,10 @@ class Parser:
     arg1 = None
     arg2 = None
 
-
     def __init__(self, file_path):
 
         self.rq = self.pre_process(file_path)
+
 
     def pre_process(self, file_path):
         """
@@ -57,7 +57,7 @@ class Parser:
         funtion that takes a command line from queue and sets class variable cmd_type, arg0, arg1, arg2
 
         Args:
-            cmd_line (str): a line of command(s)
+            cmd_line (str): a line of command(s) store in queue
 
         parse through a line of command and set the cmd_type, arg0, arg1, arg2 appropriately 
         
@@ -103,15 +103,16 @@ class Parser:
     def cmd_arg1(self):
         """
         return the first argument of the current command.
-        this will not be called if the command is equal to C_RETURN type
+
+        if current command is one word command, set arg1 to that command
+
         """
         
-        if self.cmd_type == "C_ARITHMETIC":
+        if self.cmd_type == "C_ARITHMETIC" or self.cmd_type == "C_RETURN":
             arg_temp = self.arg0
-        elif self.command_type != "C_RETURN":
+        else:
             arg_temp = self.arg1
         return arg_temp
-
 
     def cmd_arg2(self):
         """
@@ -134,11 +135,10 @@ class Parser:
 
 if __name__ == "__main__":
 
-    parser = Parser("SimpleAdd.vm")
+    parser = Parser("Sample.vm")
 
     parser.command_type(parser.advance())
-    parser.command_type(parser.advance())
-    parser.command_type(parser.advance())
+    
 
     
     print(parser.cmd_arg1())
