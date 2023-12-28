@@ -15,28 +15,164 @@ class Codewriter:
     def __init__(self):
         self.code_writer_queue = Queue()
         self.index = 0
-
-    def translate_to_asm(self, cmd_type, arg1, arg2):
-        if cmd_type == "C_ARITHMETIC":
-            self._write_arithmetic(arg1)
-        elif cmd_type == "C_PUSH":
-            self._push_template(arg1, arg2)
-        elif cmd_type == "C_POP":
-            self._pop_template(arg1, arg2)
-        # TO-DO
-            
+        self.return_address = 0
+        
     def end_operation(self):
         self._code_vm_end()
     
+ # Branching Operation
+
+    def write_label_name(self, label_name):
+        self.code_writer_queue.put("// label " + label_name)
+        self.code_writer_queue.put("({0})".format(label_name))
+        self.code_writer_queue.put("\n")
     
+    def write_goto_label(self, label_name):
+        self.code_writer_queue.put("// goto " + label_name)
+        self.code_writer_queue.put("@{0}".format(label_name))
+        self.code_writer_queue.put("0;JMP")
+        self.code_writer_queue.put("\n")
+
+    def write_if_goto_label(self, label_name):
+        self.code_writer_queue.put("// if-goto " + label_name)
+        self.code_writer_queue.put("@SP")
+        self.code_writer_queue.put("AM=M-1")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@{0}".format(label_name))
+        self.code_writer_queue.put("D;JNE")
+        self.code_writer_queue.put("\n")
+
+    def write_call(self, function_name, n_args):
+        self.code_writer_queue.put("//  call {0} {1}\n".format(function_name, n_args))
+
+        #push returnAddress: generate a label and push it to the stack
+        self.code_writer_queue.put("//  push returnAddress")
+        self.code_writer_queue.put("@RA{0}".format(self.return_address))
+        self.code_writer_queue.put("D=A")
+        self._write_call_template()
+
+        #push LCL: saves LCL of the caller
+        self.code_writer_queue.put("//  push LCL")
+        self.code_writer_queue.put("@LCL")
+        self.code_writer_queue.put("D=M")
+        self._write_call_template()
+
+        #push ARG: saves ARG of the caller
+        self.code_writer_queue.put("//  push ARG")
+        self.code_writer_queue.put("@ARG")
+        self.code_writer_queue.put("D=M")
+        self._write_call_template()
+
+        #push THIS: saves THIS of the caller
+        self.code_writer_queue.put("//  push THIS")
+        self.code_writer_queue.put("@THIS")
+        self.code_writer_queue.put("D=M")
+        self._write_call_template()       
     
-    
-    
-    
-    
+        #push THAT: saves THIS of the caller
+        self.code_writer_queue.put("//  push THAT")
+        self.code_writer_queue.put("@THAT")
+        self.code_writer_queue.put("D=M")
+        self._write_call_template()  
+
+        #repositions ARG
+        self.code_writer_queue.put("//  ARG = SP-5-nArgs")
+        self.code_writer_queue.put("@SP")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@5")
+        self.code_writer_queue.put("D=D-A")
+        self.code_writer_queue.put("@{0}".format(n_args))
+        self.code_writer_queue.put("D=D-A")
+        self.code_writer_queue.put("@ARG")
+        self.code_writer_queue.put("M=D")
+        self.code_writer_queue.put("\n")
+
+        #repositions LCL
+        self.code_writer_queue.put("//  LCL=SP")
+        self.code_writer_queue.put("@SP")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@LCL")
+        self.code_writer_queue.put("M=D")
+        self.code_writer_queue.put("\n")
+
+        #transfer control to the callee
+        self.write_goto_label(function_name)
+
+        #injects the return address label into the code
+        self.write_label_name(str(self.return_address))
+
+        self.return_address += 1
+        
+    def write_function(self, function_name, n_args):
+        self.code_writer_queue.put("//  function {0} {1}".format(function_name, n_args))
+        self.write_label_name(function_name)
+
+        for _ in range(int(n_args)):
+            self.code_writer_queue.put("@SP")
+            self.code_writer_queue.put("AM=M+1")
+            self.code_writer_queue.put("A=A-1")
+            self.code_writer_queue.put("M=0")
+        self.code_writer_queue.put("\n")
+
+    def write_return(self):
+        #frame=LCL ---- frame is a temporary variable
+        self.code_writer_queue.put("// return")
+        self.code_writer_queue.put("// frame=LCL\n")
+        self.code_writer_queue.put("LCL")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@R13")
+        self.code_writer_queue.put("M=D\n")
+
+        #retAddr = *(frame-5)---- puts the return address in a temporary variable
+        self.code_writer_queue.put("// retAddr = *(frame-5)")
+        self.code_writer_queue.put("@13")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@5")
+        self.code_writer_queue.put("A=D-A")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@R14")
+        self.code_writer_queue.put("M=D\n")
+
+        #*ARG=pop() ---- repositions the return value for the caller
+        self.code_writer_queue.put("// *ARG=pop()")
+        self.code_writer_queue.put("SP")
+        self.code_writer_queue.put("AM=M-1")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@ARG")
+        self.code_writer_queue.put("M=D\n")  
+
+        #SP=ARG+1 ---- repositions SP for the caller
+        self.code_writer_queue.put("// SP=ARG+1")
+        self.code_writer_queue.put("@ARG")
+        self.code_writer_queue.put("D=M+1")
+        self.code_writer_queue.put("@SP")
+        self.code_writer_queue.put("M=D\n")
+
+        #THAT=*(frame-1) ---- restores THAT for the caller
+        self.code_writer_queue.put("// THAT=*(frame-1)")
+        self._return_template("THAT", 1)
+
+        #THIS=*(frame-2) ---- restores THIS for the caller
+        self.code_writer_queue.put("// THIS=*(frame-2)")
+        self._return_template("THIS", 2)
+
+        #ARG=*(frame-3) ---- restores THIS for the caller
+        self.code_writer_queue.put("// ARG=*(frame-3)")
+        self._return_template("ARG", 3)
+
+        #LCL=*(frame-4) ---- restores LCL for the caller
+        self.code_writer_queue.put("// LCL=*(frame-4)")
+        self._return_template("LCL", 4)
+
+        #goto retAddr ---- go to the return address
+        self.code_writer_queue.put("// goto retAddr")
+        self.code_writer_queue.put("@R14")
+        self.code_writer_queue.put("A=M")
+        self.code_writer_queue.put("0;JMP\n")
+
 #Arithmetic operation 
     
-    def _write_arithmetic(self, operation):
+    def write_arithmetic(self, operation):
         """
         when comand type is a C_ARITHMETIC:
 
@@ -57,12 +193,14 @@ class Codewriter:
             self._code_vm_and()
         elif operation == "or":
             self._code_vm_or()
+        elif operation == "not":
+            self._code_vm_not()
         else:
             raise ValueError("Invalid arithmetic command!")
 
 # Push and Pop Operations
 
-    def _push_template(self, segment, offset):
+    def push_operation(self, segment, offset):
         """
         Push template for constant, static, local, argument, this, that, pointer, temp
 
@@ -118,7 +256,7 @@ class Codewriter:
         self.code_writer_queue.put("M=M+1")
         self.code_writer_queue.put("\n") 
 
-    def _pop_template(self, segment, offset):
+    def pop_operation(self, segment, offset):
         """
         Pop template for static, local, argument, this, that, pointer, temp
 
@@ -171,8 +309,6 @@ class Codewriter:
         else:
             raise ValueError("Invalid Hack assembly code detected!")
         
-
-
 # Arithmetic Operations
         
     def _code_vm_add(self):
@@ -206,7 +342,23 @@ class Codewriter:
         self._end_template()
 
 
-#operation templates
+#templates
+    
+    def _return_template(self, segment, index):
+        self.code_writer_queue.put("@13")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@{0}".format(index))
+        self.code_writer_queue.put("A=D-A")
+        self.code_writer_queue.put("D=M")
+        self.code_writer_queue.put("@{0}".format(segment))
+        self.code_writer_queue.put("M=D\n")
+
+    def _write_call_template(self):
+        self.code_writer_queue.put("@SP")
+        self.code_writer_queue.put("AM=M+1")
+        self.code_writer_queue.put("@A=A-1")
+        self.code_writer_queue.put("M=D")
+        self.code_writer_queue.put("\n")
 
     def _eq_gt_lt_template(self, cmd, jmp):
         """
@@ -303,9 +455,7 @@ class Codewriter:
 if __name__ == "__main__":
         
         cw = Codewriter()
-        cw._push_template("static", 7)
-        cw._push_template("constant", 8)
-        cw.write_arithmetic('add')
-    
+        cw.push_operation("constant", "7")
         
+
         cw._print_queue()
