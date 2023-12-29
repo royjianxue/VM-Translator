@@ -1,14 +1,22 @@
 from Codewriter import Codewriter
 from Parser import Parser
-import argparse
 import os
 from tkinter import *
 from tkinter import filedialog
 
 
 def translateVM(file_name, cw):
-    # instances
-   
+    """
+    Initialize stack pointer and translates VM code to assembly based on teh command type.
+
+    Args: 
+        file_name (string): the full path of file
+        cw (Object): an instance of Codewriter class
+
+    comments:
+        Include Parser object in this function because mutiple instances represent mutiple .vm files
+        Passing Codewriter object as argument because only need one instance to store asm code in Queue
+    """
     parser = Parser(file_name)
     cw.write_init()
 
@@ -27,9 +35,9 @@ def translateVM(file_name, cw):
         elif cmd_type == "C_LABEL":
             cw.write_label_name(arg1)
         elif cmd_type == "C_IF":
-            cw.write_if_goto_label(arg1)
+            cw.write_if_goto(arg1)
         elif cmd_type == "C_GOTO":
-            cw.write_goto_label(arg1)
+            cw.write_goto(arg1)
         elif cmd_type == "C_CALL":
             cw.write_call(arg1, int(arg2))
         elif cmd_type == "C_FUNCTION":
@@ -38,8 +46,6 @@ def translateVM(file_name, cw):
             cw.write_return()    
         else:
             raise ValueError("Invalid Commands!")     
-
-
 
 def write_to_file(queue, file_destination):
     """
@@ -56,43 +62,21 @@ def write_to_file(queue, file_destination):
             asm_file.write(line + '\n')   
                   
 
-
-def print_queue(q):
-    while not q.empty():
-        item = q.get()
-        print(item)
-
-
 def run():
     """
-    Runs the ASM.py Hack assembler.
+    run the VM translator
 
-    This function serves as the entry point for the VM Translator.
-
-    Note: The function assumes the existence of the Parser class and the write_to_file function.
-
-    Raises:
-        SystemExit: If there is an issue parsing command-line arguments.
-
-    Example:
-        To run the assembler:
-        ```
-        python ASM.py <input_filename>.asm
-        ```
-        This will process the input assembly code, generate the corresponding machine code,
-        and save it to the output file with a '.hack' extension.
     """
     root = Tk()
     root.withdraw()
-    file_path =  filedialog.askdirectory(initialdir = "/", title = "Select a folder")
+    file_dir =  filedialog.askdirectory(initialdir = "/", title = "Select a folder")
     cw = Codewriter()
-    
-    for file_name in os.listdir(file_path):
+    for file_name in os.listdir(file_dir):
         if file_name.lower().endswith(".vm"):
             cw.set_file_name(file_name)
-            translateVM(file_path + "\\" + file_name, cw)
-    cw.end_operation()
-    write_to_file(cw.code_writer_queue, file_path + "\\" + os.path.basename(file_path) + ".asm")
+            translateVM(file_dir + "\\" + file_name, cw)
+    final_queue = cw.get_queue()
+    write_to_file(final_queue, file_dir + "\\" + os.path.basename(file_dir) + ".asm")
     
 
 run()

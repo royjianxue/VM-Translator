@@ -10,7 +10,6 @@ class Parser:
     arg2 = None
 
     def __init__(self, file_path):
-
         self.rq = self.pre_process(file_path)
 
 
@@ -125,21 +124,5 @@ class Parser:
             arg_temp = None
         return arg_temp
     
-    # Below this line are helper methods    
 
-    def print_queue(self):
-        while not self.rq.empty():
-            item = self.rq.get()
-            print(item)
-
-
-if __name__ == "__main__":
-
-    parser = Parser("Sample.vm")
-
-    parser.command_type(parser.advance())
-    
-    print(parser.cmd_arg1())
-    print(parser.cmd_arg2())
-    
  
