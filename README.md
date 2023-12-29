@@ -25,24 +25,15 @@ M register (RAM register): M register receives address value 10 from A register 
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/your-username/nand2tetris-vm-translator.git
-    cd nand2tetris-vm-translator
-    ```
-
 2. Run the VM Translator:
 
     ```bash
-    python VMTranslator.py path/to/your/vm/file.vm
+    python VMTranslator.py
     ```
-
-    Replace `path/to/your/vm/file.vm` with the path to your VM code file.
+    GUI: select folder that contains .vm files
 
 3. View the generated assembly code:
 
     The translated assembly code will be created in the same directory as your VM file with the extension `.asm`.
 
-## Example
 
-```bash
-python VMTranslator.py examples/SimpleAdd/SimpleAdd.vm
