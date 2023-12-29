@@ -139,8 +139,6 @@ if __name__ == "__main__":
 
     parser.command_type(parser.advance())
     
-
-    
     print(parser.cmd_arg1())
     print(parser.cmd_arg2())
     
