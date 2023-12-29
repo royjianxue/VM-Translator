@@ -1,12 +1,17 @@
 from Codewriter import Codewriter
 from Parser import Parser
 import argparse
+import os
+from tkinter import *
+from tkinter import filedialog
 
-def translateVM(file_path):
+
+def translateVM(file_name, cw):
     # instances
-    parser = Parser(file_path)
-    cw = Codewriter()
-    
+   
+    parser = Parser(file_name)
+    cw.write_init()
+
     while parser.has_more_lines():
         command = parser.advance()
         cmd_type = parser.command_type(command)
@@ -26,29 +31,30 @@ def translateVM(file_path):
         elif cmd_type == "C_GOTO":
             cw.write_goto_label(arg1)
         elif cmd_type == "C_CALL":
-            cw.write_call(arg1, arg2)
+            cw.write_call(arg1, int(arg2))
         elif cmd_type == "C_FUNCTION":
             cw.write_function(arg1, arg2)
         elif cmd_type == "C_RETURN":
             cw.write_return()    
-    cw.end_operation()      
+        else:
+            raise ValueError("Invalid Commands!")     
 
-    return cw.code_writer_queue
 
 
-def write_to_file(queue, filepath):
+def write_to_file(queue, file_destination):
     """
     Writes the contents of the queue to a file specified by the filepath.
 
     Args:
         queue (Queue): A queue containing assembly instructions.
-        filepath (str): The path to the file where the instructions will be written.
+        file_destination (str): The path to the file where the instructions will be written.
 
     """
-    with open(filepath, "w") as asm_file:
+    with open(file_destination, "w") as asm_file:
         while not queue.empty():    
             line = queue.get()
-            asm_file.write(line + '\n')               
+            asm_file.write(line + '\n')   
+                  
 
 
 def print_queue(q):
@@ -61,7 +67,7 @@ def run():
     """
     Runs the ASM.py Hack assembler.
 
-    This function serves as the entry point for the Hack assembler.
+    This function serves as the entry point for the VM Translator.
 
     Note: The function assumes the existence of the Parser class and the write_to_file function.
 
@@ -76,14 +82,17 @@ def run():
         This will process the input assembly code, generate the corresponding machine code,
         and save it to the output file with a '.hack' extension.
     """
-    #command line processing
-    arg_parser = argparse.ArgumentParser(description='VM Assembly Language.')
-    arg_parser.add_argument('input_filename', help='Input VM Instruction  filename')
-    args = arg_parser.parse_args()
-    processed_queue = translateVM(args.input_filename)
+    root = Tk()
+    root.withdraw()
+    file_path =  filedialog.askdirectory(initialdir = "/", title = "Select a folder")
+    cw = Codewriter()
     
-    output_filename = args.input_filename.replace('.vm', '.asm')
-
-    write_to_file(processed_queue, output_filename)
+    for file_name in os.listdir(file_path):
+        if file_name.lower().endswith(".vm"):
+            cw.set_file_name(file_name)
+            translateVM(file_path + "\\" + file_name, cw)
+    cw.end_operation()
+    write_to_file(cw.code_writer_queue, file_path + "\\" + os.path.basename(file_path) + ".asm")
+    
 
 run()
